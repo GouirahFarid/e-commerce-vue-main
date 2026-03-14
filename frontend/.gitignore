@@ -12,7 +12,7 @@ dist
 dist-ssr
 *.local
 .vite
-#package-lock.json
+!package-lock.json
 coverage/
 test-results/
 gl-code-quality-report.json
