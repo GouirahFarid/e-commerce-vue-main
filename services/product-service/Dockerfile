@@ -4,5 +4,5 @@ COPY package*.json ./
 RUN npm install --only=production
 RUN apk add --no-cache curl
 COPY . .
-EXPOSE 3001
+EXPOSE 3000
 CMD ["node", "src/app.js"]
