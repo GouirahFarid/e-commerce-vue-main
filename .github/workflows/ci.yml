@@ -1,0 +1,40 @@
+# CI Pipeline - Test all services
+name: CI
+
+on:
+  push:
+    branches: [main, develop, feature/**]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - { name: frontend, dir: ./frontend }
+          - { name: auth-service, dir: ./services/auth-service }
+          - { name: product-service, dir: ./services/product-service }
+          - { name: order-service, dir: ./services/order-service }
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        working-directory: ${{ matrix.service.dir }}
+        run: npm ci --legacy-peer-deps --no-audit
+
+      - name: Run tests
+        working-directory: ${{ matrix.service.dir }}
+        run: npm test
+        timeout-minutes: 10

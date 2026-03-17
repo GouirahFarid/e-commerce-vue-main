@@ -1,0 +1,127 @@
+version: '3.8'
+
+# GHCR Image Registry
+# Images are built and pushed via GitHub Actions build-push.yml workflow
+# Repository: GouirahFarid/e-commerce-vue-main
+# Registry: ghcr.io
+
+services:
+  nginx:
+    image: ghcr.io/GouirahFarid/e-commerce-vue-main-nginx:latest
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      frontend:
+        condition: service_healthy
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  frontend:
+    image: ghcr.io/GouirahFarid/e-commerce-vue-main-frontend:latest
+    environment:
+      - VITE_AUTH_SERVICE_URL=http://auth-service:3001
+      - VITE_PRODUCT_SERVICE_URL=http://product-service:3000
+      - VITE_ORDER_SERVICE_URL=http://order-service:3002
+      - NODE_ENV=production
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      product-service:
+        condition: service_healthy
+      order-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  auth-service:
+    image: ghcr.io/GouirahFarid/e-commerce-vue-main-auth-service:latest
+    environment:
+      - PORT=${AUTH_PORT:-3001}
+      - MONGODB_URI=mongodb://mongodb:27017/auth
+      - JWT_SECRET=${JWT_SECRET}
+      - NODE_ENV=production
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  product-service:
+    image: ghcr.io/GouirahFarid/e-commerce-vue-main-product-service:latest
+    environment:
+      - PORT=${PRODUCT_PORT:-3000}
+      - MONGODB_URI=mongodb://mongodb:27017/ecommerce
+      - JWT_SECRET=${JWT_SECRET}
+      - NODE_ENV=production
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  order-service:
+    image: ghcr.io/GouirahFarid/e-commerce-vue-main-order-service:latest
+    environment:
+      - PORT=${ORDER_PORT:-3002}
+      - MONGODB_URI=mongodb://mongodb:27017/orders
+      - JWT_SECRET=${JWT_SECRET}
+      - VITE_PRODUCT_SERVICE_URL=http://product-service:3000
+      - NODE_ENV=production
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      product-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--no-verbose", "--tries=1", "--spider", "http://localhost:3002/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  mongodb:
+    image: mongo:7
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    volumes:
+      - mongodb-data:/data/db
+    networks:
+      - app-network
+    restart: unless-stopped
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  mongodb-data:
