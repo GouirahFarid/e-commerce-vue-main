@@ -1,4 +1,4 @@
-import { jest, beforeAll, afterAll, beforeEach } from '@jest/globals';
+import { beforeAll, afterAll, beforeEach } from '@jest/globals';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
@@ -8,27 +8,14 @@ dotenv.config({ path: '.env.test' });
 let mongod;
 
 beforeAll(async () => {
-  // Déconnexion si déjà connecté
   if (mongoose.connection.readyState !== 0) {
     await mongoose.disconnect();
   }
 
-  mongod = await MongoMemoryServer.create({
-    binary: {
-      version: '4.4.18',
-      skipMD5: true
-    }
-  });
+  mongod = await MongoMemoryServer.create();
 
-  const uri = await mongod.getUri();
-  
-  // Configuration de la connexion
-  const mongooseOpts = {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  };
-
-  await mongoose.connect(uri, mongooseOpts);
+  const uri = mongod.getUri();
+  await mongoose.connect(uri);
 });
 
 afterAll(async () => {
@@ -41,8 +28,6 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
-  if (!mongod || !mongod.isRunning) return;
-  
   const collections = mongoose.connection.collections;
   for (const key in collections) {
     await collections[key].deleteMany();
