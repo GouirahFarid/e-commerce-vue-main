@@ -12,7 +12,6 @@ jobs:
     timeout-minutes: 15
     environment:
       name: staging
-      url: http://${{ secrets.STAGING_VPS_HOST }}
 
     steps:
       - name: Checkout
