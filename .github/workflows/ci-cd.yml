@@ -129,6 +129,16 @@ jobs:
           source: "docker-compose.prod.yml"
           target: "/var/www/e-commerce/"
 
+      - name: Copy init-products.sh script to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.STAGING_VPS_HOST }}
+          username: ${{ secrets.STAGING_VPS_USER }}
+          key: ${{ secrets.STAGING_VPS_SSH_KEY }}
+          source: "scripts/init-products.sh"
+          target: "/var/www/e-commerce/"
+          rm: false
+
       - name: Deploy to Staging VPS
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -164,6 +174,11 @@ jobs:
             sleep 20
 
             sudo docker compose -f docker-compose.prod.yml ps
+
+            echo "Executing init-products.sh script..."
+            sudo docker compose -f docker-compose.prod.yml cp /var/www/e-commerce/init-products.sh product-service:/tmp/init-products.sh
+            sudo docker compose -f docker-compose.prod.yml exec -T product-service sh /tmp/init-products.sh || echo "Note: Products may already exist or script failed"
+
             echo "Staging deployment completed!"
 
   # Stage 3b: Deploy to Production (after build, on main branch)
@@ -199,6 +214,16 @@ jobs:
           source: "docker-compose.prod.yml"
           target: "/var/www/e-commerce/"
 
+      - name: Copy init-products.sh script to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.PROD_VPS_HOST }}
+          username: ${{ secrets.PROD_VPS_USER }}
+          key: ${{ secrets.PROD_VPS_SSH_KEY }}
+          source: "scripts/init-products.sh"
+          target: "/var/www/e-commerce/"
+          rm: false
+
       - name: Deploy to Production VPS
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -230,6 +255,10 @@ jobs:
             sleep 30
 
             sudo docker compose -f docker-compose.prod.yml ps
+
+            echo "Executing init-products.sh script..."
+            sudo docker compose -f docker-compose.prod.yml cp /var/www/e-commerce/init-products.sh product-service:/tmp/init-products.sh
+            sudo docker compose -f docker-compose.prod.yml exec -T product-service sh /tmp/init-products.sh || echo "Note: Products may already exist or script failed"
 
             echo "Cleaning up old images..."
             sudo docker image prune -af --filter "until=72h"
