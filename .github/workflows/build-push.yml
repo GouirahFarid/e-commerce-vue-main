@@ -8,7 +8,6 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  REPO: ${{ github.repository }}
 
 jobs:
   build-push:
@@ -46,7 +45,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ lowercase(env.REPO) }}-${{ matrix.service.name }}
+          images: ghcr.io/gouirahfarid/e-commerce-vue-main-${{ matrix.service.name }}
           tags: |
             type=ref,event=branch
             type=sha,prefix={{branch}}-
