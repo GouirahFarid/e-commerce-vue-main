@@ -26,6 +26,8 @@ jobs:
           script: |
             sudo mkdir -p /var/www/e-commerce
             sudo chown -R $USER:$USER /var/www/e-commerce
+            # Add user to docker group if not already
+            sudo usermod -aG docker $USER 2>/dev/null || true
 
       - name: Copy docker-compose file to VPS
         uses: appleboy/scp-action@v0.1.7
@@ -65,16 +67,16 @@ jobs:
 
             # Pull latest images
             echo "Pulling latest images..."
-            docker compose -f docker-compose.prod.yml pull
+            sudo docker compose -f docker-compose.prod.yml pull
 
             # Stop old containers and start new ones
             echo "Starting services..."
-            docker compose -f docker-compose.prod.yml up -d
+            sudo docker compose -f docker-compose.prod.yml up -d
 
             # Wait for health checks
             echo "Waiting for health checks..."
             sleep 20
 
             # Show running containers
-            docker compose -f docker-compose.prod.yml ps
+            sudo docker compose -f docker-compose.prod.yml ps
             echo "Staging deployment completed!"
