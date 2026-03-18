@@ -17,6 +17,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Create directory on VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.STAGING_VPS_HOST }}
+          username: ${{ secrets.STAGING_VPS_USER }}
+          key: ${{ secrets.STAGING_VPS_SSH_KEY }}
+          script: |
+            sudo mkdir -p /var/www/e-commerce
+            sudo chown -R $USER:$USER /var/www/e-commerce
+
       - name: Copy docker-compose file to VPS
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -24,8 +34,7 @@ jobs:
           username: ${{ secrets.STAGING_VPS_USER }}
           key: ${{ secrets.STAGING_VPS_SSH_KEY }}
           source: "docker-compose.prod.yml"
-          target: "/var/www/e-commerce"
-          strip_components: 1
+          target: "/var/www/e-commerce/"
 
       - name: Deploy to Staging VPS
         uses: appleboy/ssh-action@v1.0.3
@@ -36,10 +45,6 @@ jobs:
           script_stop: true
           script: |
             set -e
-
-            # Ensure directory exists with proper permissions
-            sudo mkdir -p /var/www/e-commerce
-            sudo chown -R $USER:$USER /var/www/e-commerce
             cd /var/www/e-commerce
 
             # Create .env if not exists
