@@ -2,8 +2,10 @@
 name: Deploy to Staging
 
 on:
-  push:
-    branches: [develop, feature/ci-cd]
+  workflow_run:
+    workflows: [Build & Push]
+    branches: [develop, feature/**]
+    types: [completed]
   workflow_dispatch:
 
 jobs:
@@ -12,6 +14,7 @@ jobs:
     timeout-minutes: 15
     environment:
       name: staging
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     steps:
       - name: Checkout
@@ -26,7 +29,6 @@ jobs:
           script: |
             sudo mkdir -p /var/www/e-commerce
             sudo chown -R $USER:$USER /var/www/e-commerce
-            # Add user to docker group if not already
             sudo usermod -aG docker $USER 2>/dev/null || true
 
       - name: Copy docker-compose file to VPS
@@ -49,7 +51,6 @@ jobs:
             set -e
             cd /var/www/e-commerce
 
-            # Create .env if not exists
             if [ ! -f .env ]; then
               echo "Creating .env file..."
               cat > .env << 'EOF'
@@ -62,21 +63,16 @@ jobs:
             EOF
             fi
 
-            # Login to GHCR
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
-            # Pull latest images
             echo "Pulling latest images..."
             sudo docker compose -f docker-compose.prod.yml pull
 
-            # Stop old containers and start new ones
             echo "Starting services..."
             sudo docker compose -f docker-compose.prod.yml up -d
 
-            # Wait for health checks
             echo "Waiting for health checks..."
             sleep 20
 
-            # Show running containers
             sudo docker compose -f docker-compose.prod.yml ps
             echo "Staging deployment completed!"

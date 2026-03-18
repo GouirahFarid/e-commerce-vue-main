@@ -2,8 +2,10 @@
 name: Deploy to Production
 
 on:
-  push:
+  workflow_run:
+    workflows: [Build & Push]
     branches: [main]
+    types: [completed]
   workflow_dispatch:
 
 jobs:
@@ -13,10 +15,31 @@ jobs:
     environment:
       name: production
       url: http://${{ secrets.PROD_VPS_HOST }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Create directory on VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PROD_VPS_HOST }}
+          username: ${{ secrets.PROD_VPS_USER }}
+          key: ${{ secrets.PROD_VPS_SSH_KEY }}
+          script: |
+            sudo mkdir -p /var/www/e-commerce
+            sudo chown -R $USER:$USER /var/www/e-commerce
+            sudo usermod -aG docker $USER 2>/dev/null || true
+
+      - name: Copy docker-compose file to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.PROD_VPS_HOST }}
+          username: ${{ secrets.PROD_VPS_USER }}
+          key: ${{ secrets.PROD_VPS_SSH_KEY }}
+          source: "docker-compose.prod.yml"
+          target: "/var/www/e-commerce/"
 
       - name: Deploy to Production VPS
         uses: appleboy/ssh-action@v1.0.3
@@ -27,13 +50,7 @@ jobs:
           script_stop: true
           script: |
             set -e
-
-            cd /var/www/e-commerce || exit 1
-
-            echo "Pulling latest changes from main..."
-            git fetch origin main
-            git checkout main
-            git pull origin main
+            cd /var/www/e-commerce
 
             if [ ! -f .env ]; then
               echo "ERROR: .env file not found!"
@@ -43,20 +60,20 @@ jobs:
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
             echo "Creating database backup..."
-            docker-compose -f docker-compose.prod.yml exec -T mongodb mongodump --archive=/tmp/backup-$(date +%Y%m%d-%H%M%S).archive || echo "Warning: Backup failed"
+            sudo docker compose -f docker-compose.prod.yml exec -T mongodb mongodump --archive=/tmp/backup-$(date +%Y%m%d-%H%M%S).archive || echo "Warning: Backup failed"
 
             echo "Pulling latest images..."
-            docker-compose -f docker-compose.prod.yml pull
+            sudo docker compose -f docker-compose.prod.yml pull
 
             echo "Starting services..."
-            docker-compose -f docker-compose.prod.yml up -d
+            sudo docker compose -f docker-compose.prod.yml up -d
 
             echo "Waiting for health checks..."
             sleep 30
 
-            docker-compose -f docker-compose.prod.yml ps
+            sudo docker compose -f docker-compose.prod.yml ps
 
             echo "Cleaning up old images..."
-            docker image prune -af --filter "until=72h"
+            sudo docker image prune -af --filter "until=72h"
 
             echo "Production deployment completed!"
