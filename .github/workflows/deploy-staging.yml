@@ -37,8 +37,9 @@ jobs:
           script: |
             set -e
 
-            # Ensure directory exists
+            # Ensure directory exists with proper permissions
             sudo mkdir -p /var/www/e-commerce
+            sudo chown -R $USER:$USER /var/www/e-commerce
             cd /var/www/e-commerce
 
             # Create .env if not exists
