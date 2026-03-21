@@ -137,7 +137,6 @@ jobs:
           key: ${{ secrets.STAGING_VPS_SSH_KEY }}
           source: "scripts/init-products.sh"
           target: "/var/www/e-commerce/"
-          rm: false
 
       - name: Deploy to Staging VPS
         uses: appleboy/ssh-action@v1.0.3
@@ -176,7 +175,7 @@ jobs:
             sudo docker compose -f docker-compose.prod.yml ps
 
             echo "Executing init-products.sh script..."
-            sudo docker compose -f docker-compose.prod.yml cp /var/www/e-commerce/init-products.sh product-service:/tmp/init-products.sh
+            sudo docker compose -f docker-compose.prod.yml cp /var/www/e-commerce/scripts/init-products.sh product-service:/tmp/init-products.sh
             sudo docker compose -f docker-compose.prod.yml exec -T product-service sh /tmp/init-products.sh || echo "Note: Products may already exist or script failed"
 
             echo "Staging deployment completed!"
@@ -222,7 +221,6 @@ jobs:
           key: ${{ secrets.PROD_VPS_SSH_KEY }}
           source: "scripts/init-products.sh"
           target: "/var/www/e-commerce/"
-          rm: false
 
       - name: Deploy to Production VPS
         uses: appleboy/ssh-action@v1.0.3
@@ -257,7 +255,7 @@ jobs:
             sudo docker compose -f docker-compose.prod.yml ps
 
             echo "Executing init-products.sh script..."
-            sudo docker compose -f docker-compose.prod.yml cp /var/www/e-commerce/init-products.sh product-service:/tmp/init-products.sh
+            sudo docker compose -f docker-compose.prod.yml cp /var/www/e-commerce/scripts/init-products.sh product-service:/tmp/init-products.sh
             sudo docker compose -f docker-compose.prod.yml exec -T product-service sh /tmp/init-products.sh || echo "Note: Products may already exist or script failed"
 
             echo "Cleaning up old images..."
