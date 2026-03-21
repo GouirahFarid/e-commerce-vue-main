@@ -8,9 +8,10 @@ on:
       sha:
         required: true
         type: string
-    permissions:
-      contents: read
-      security-events: write
+
+permissions:
+  contents: read
+  security-events: write
 
 jobs:
   trivy:
