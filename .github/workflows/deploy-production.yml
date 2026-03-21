@@ -1,21 +1,30 @@
-# Deploy to Production Environment
+# Reusable Production Deployment Workflow
+# Called by ci.yml for main branch
+# Uses docker stack deploy with docker-compose.swarm.yml
 name: Deploy to Production
 
 on:
-  workflow_run:
-    workflows: [Build & Push]
-    branches: [main]
-    types: [completed]
-  workflow_dispatch:
+  workflow_call:
+    secrets:
+      PROD_VPS_HOST:
+        required: true
+      PROD_VPS_USER:
+        required: true
+      PROD_VPS_SSH_KEY:
+        required: true
+      GITHUB_TOKEN:
+        required: true
+      JWT_SECRET:
+        required: false
 
 jobs:
   deploy:
+    name: Deploy to Production
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment:
       name: production
       url: http://${{ secrets.PROD_VPS_HOST }}
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     steps:
       - name: Checkout
@@ -32,13 +41,22 @@ jobs:
             sudo chown -R $USER:$USER /var/www/e-commerce
             sudo usermod -aG docker $USER 2>/dev/null || true
 
-      - name: Copy docker-compose file to VPS
+      - name: Copy docker-compose.swarm.yml to VPS
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.PROD_VPS_HOST }}
           username: ${{ secrets.PROD_VPS_USER }}
           key: ${{ secrets.PROD_VPS_SSH_KEY }}
-          source: "docker-compose.prod.yml"
+          source: "docker-compose.swarm.yml"
+          target: "/var/www/e-commerce/"
+
+      - name: Copy init-products.sh script to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.PROD_VPS_HOST }}
+          username: ${{ secrets.PROD_VPS_USER }}
+          key: ${{ secrets.PROD_VPS_SSH_KEY }}
+          source: "scripts/init-products.sh"
           target: "/var/www/e-commerce/"
 
       - name: Deploy to Production VPS
@@ -59,21 +77,38 @@ jobs:
 
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
-            echo "Creating database backup..."
-            sudo docker compose -f docker-compose.prod.yml exec -T mongodb mongodump --archive=/tmp/backup-$(date +%Y%m%d-%H%M%S).archive || echo "Warning: Backup failed"
+            # Initialize Swarm mode if not already initialized
+            if ! docker info | grep -q "Swarm: active"; then
+              echo "Initializing Swarm mode..."
+              docker swarm init --advertise-addr $(hostname -I | awk '{print $1}') || true
+            fi
 
             echo "Pulling latest images..."
-            sudo docker compose -f docker-compose.prod.yml pull
+            docker pull ghcr.io/gouirahfarid/e-commerce-vue-main-nginx:latest
+            docker pull ghcr.io/gouirahfarid/e-commerce-vue-main-frontend:latest
+            docker pull ghcr.io/gouirahfarid/e-commerce-vue-main-auth-service:latest
+            docker pull ghcr.io/gouirahfarid/e-commerce-vue-main-product-service:latest
+            docker pull ghcr.io/gouirahfarid/e-commerce-vue-main-order-service:latest
 
-            echo "Starting services..."
-            sudo docker compose -f docker-compose.prod.yml up -d
+            echo "Deploying stack with docker stack deploy..."
+            docker stack deploy -c docker-compose.swarm.yml e-commerce
 
-            echo "Waiting for health checks..."
+            echo "Waiting for services to start..."
             sleep 30
 
-            sudo docker compose -f docker-compose.prod.yml ps
+            echo "Stack services status:"
+            docker stack services e-commerce
+
+            echo "Executing init-products.sh script..."
+            CONTAINER_ID=$(docker ps -q -f name=e-commerce_product-service)
+            if [ -n "$CONTAINER_ID" ]; then
+              docker cp /var/www/e-commerce/scripts/init-products.sh $CONTAINER_ID:/tmp/init-products.sh
+              docker exec $CONTAINER_ID sh /tmp/init-products.sh || echo "Note: Products may already exist or script failed"
+            else
+              echo "Warning: product-service container not found"
+            fi
 
             echo "Cleaning up old images..."
-            sudo docker image prune -af --filter "until=72h"
+            docker image prune -af --filter "until=72h"
 
             echo "Production deployment completed!"

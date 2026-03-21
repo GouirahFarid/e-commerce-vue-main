@@ -15,6 +15,14 @@ services:
     networks:
       - app-network
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
 
   frontend:
     image: ghcr.io/gouirahfarid/e-commerce-vue-main-frontend:latest
@@ -39,6 +47,14 @@ services:
     networks:
       - app-network
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
 
   auth-service:
     image: ghcr.io/gouirahfarid/e-commerce-vue-main-auth-service:latest
@@ -59,6 +75,14 @@ services:
     networks:
       - app-network
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
 
   product-service:
     image: ghcr.io/gouirahfarid/e-commerce-vue-main-product-service:latest
@@ -79,6 +103,14 @@ services:
     networks:
       - app-network
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
 
   order-service:
     image: ghcr.io/gouirahfarid/e-commerce-vue-main-order-service:latest
@@ -102,6 +134,14 @@ services:
     networks:
       - app-network
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
 
   mongodb:
     image: mongo:7
@@ -116,6 +156,14 @@ services:
     networks:
       - app-network
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
 
 networks:
   app-network:

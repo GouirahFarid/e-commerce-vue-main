@@ -29,6 +29,7 @@
    - [Tests Frontend](#tests-frontend)
    - [Tests Backend](#tests-backend)
 9. [Bonnes Pratiques et Considérations](#bonnes-pratiques-et-considérations)
+   - [Docker Best Practices](#docker-best-practices)
 10. [Annexes](#annexes)
     - [Exemples de Commandes CURL](#exemples-de-commandes-curl)
     - [Comment Exécuter le Projet](#comment-exécuter-le-projet)
@@ -77,8 +78,17 @@ Voici la structure complète du projet, excluant les dossiers ignorés (`node_mo
 
 ```
 .
+├── .github
+│   └── workflows
+│       ├── build-push.yml
+│       ├── ci.yml
+│       ├── deploy-production.yml
+│       ├── deploy-staging.yml
+│       └── security-scan.yml
 ├── docker-compose.prod.yml
+├── docker-compose.swarm.yml
 ├── docker-compose.yml
+├── logs_projet.txt
 ├── frontend
 │   ├── build-front.yml
 │   ├── Dockerfile
@@ -548,6 +558,65 @@ npm run lint || true # Si disponible
   - PM2 est utilisé pour gérer les processus Node.js dans les environnements de pré-production ou de test.
 - **Gestion des Variables d'Environnement** :
   - Les variables sensibles, comme `JWT_SECRET`, sont gérées via des variables d'environnement et doivent être correctement configurées.
+
+### Docker Best Practices
+
+Ce projet implémente les meilleures pratiques Docker pour la sécurité, l'optimisation et le développement :
+
+#### Sécurité des Conteneurs
+
+- **Utilisateurs Non-Root** : Tous les conteneurs s'exécutent avec un utilisateur non-root (`nodejs` pour les services Node.js, `nginx` pour le reverse proxy) pour réduire la surface d'attaque.
+- **Multi-Stage Builds** : Tous les services utilisent des builds multi-stages pour :
+  - Réduire la taille finale des images
+  - Séparer les dépendances de build des dépendances runtime
+  - N'inclure que les fichiers nécessaires en production
+- **Health Checks** : Chaque service dispose d'un health check pour surveiller son état.
+
+#### Développement
+
+- **Hot-Reload** : Le fichier `docker-compose.yml` inclut des montages de volumes pour le développement :
+  - Les modifications des fichiers sources sont automatiquement prises en compte
+  - Le dossier `node_modules` est isolé pour éviter les conflits
+- **Environnements Séparés** :
+  - `docker-compose.yml` : Développement avec volumes et hot-reload
+  - `docker-compose.prod.yml` : Production avec images GHCR optimisées
+  - `docker-compose.swarm.yml` : Docker Swarm avec réplication et load balancing
+
+#### Production
+
+- **Limites de Ressources** : Chaque service en production a des limites CPU et mémoire définies pour éviter la surconsommation.
+- **Redémarrage Automatique** : Les services sont configurés avec `restart: unless-stopped`.
+- **Docker Swarm** : Configuration pour le déploiement en mode Swarm avec :
+  - Réplica de 2 instances par service
+  - Mise à jour progressive (rolling updates)
+  - Stratégie de redémarrage en cas d'échec
+  - Placement contrôlé pour MongoDB (nœuds manager uniquement)
+
+#### Sécurité et Scan de Vulnérabilités
+
+- **Trivy Security Scan** : Un workflow GitHub Actions (`security-scan.yml`) effectue des scans de sécurité :
+  - Analyse du système de fichiers
+  - Scan des images Docker pour les vulnérabilités
+  - Rapports SARIF uploadés dans l'onglet Security de GitHub
+  - Exécution quotidienne automatique (2 AM UTC)
+
+#### Commandes Utiles
+
+```bash
+# Vérifier l'utilisateur dans un conteneur
+docker compose exec auth-service whoami  # doit afficher: nodejs
+
+# Scanner une image avec Trivy localement
+trivy image ghcr.io/gouirahfarid/e-commerce-vue-main-auth-service:latest
+
+# Déployer en Swarm
+docker stack deploy -c docker-compose.swarm.yml e-commerce
+docker stack services e-commerce
+docker stack rm e-commerce
+
+# Vérifier les health checks
+docker compose ps
+```
 
 ---
 

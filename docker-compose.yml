@@ -17,6 +17,10 @@ services:
       - VITE_AUTH_SERVICE_URL=http://auth-service:3001
       - VITE_PRODUCT_SERVICE_URL=http://product-service:3000
       - VITE_ORDER_SERVICE_URL=http://order-service:3002
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+      - /app/node_modules
     depends_on:
       auth-service:
         condition: service_healthy
@@ -39,6 +43,9 @@ services:
       - PORT=3001
       - MONGODB_URI=mongodb://mongodb:27017/auth
       - JWT_SECRET=efrei_super_pass
+    volumes:
+      - ./services/auth-service/src:/app/src
+      - /app/node_modules
     depends_on:
       mongodb:
         condition: service_healthy
@@ -57,6 +64,9 @@ services:
       - PORT=3000
       - MONGODB_URI=mongodb://mongodb:27017/ecommerce
       - JWT_SECRET=efrei_super_pass
+    volumes:
+      - ./services/product-service/src:/app/src
+      - /app/node_modules
     depends_on:
       mongodb:
         condition: service_healthy
@@ -76,6 +86,9 @@ services:
       - MONGODB_URI=mongodb://mongodb:27017/orders
       - JWT_SECRET=efrei_super_pass
       - VITE_PRODUCT_SERVICE_URL=http://product-service:3000
+    volumes:
+      - ./services/order-service/src:/app/src
+      - /app/node_modules
     depends_on:
       mongodb:
         condition: service_healthy

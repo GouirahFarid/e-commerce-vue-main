@@ -1,4 +1,5 @@
-# CI Pipeline - Test all services
+# CI Pipeline - Entry point for modular workflow
+# Chain: test -> scan -> build -> deploy (staging/production)
 name: CI
 
 on:
@@ -8,7 +9,11 @@ on:
     branches: [main]
   workflow_dispatch:
 
+env:
+  REGISTRY: ghcr.io
+
 jobs:
+  # Stage 1: Test all services
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -38,3 +43,33 @@ jobs:
         working-directory: ${{ matrix.service.dir }}
         run: npm test
         timeout-minutes: 10
+
+  # Stage 2: Security scan (calls reusable scan workflow)
+  scan:
+    needs: test
+    uses: ./.github/workflows/scan.yml
+    with:
+      sha: ${{ github.sha }}
+    secrets: inherit
+
+  # Stage 3: Build and push (calls reusable build workflow)
+  build:
+    needs: scan
+    uses: ./.github/workflows/build.yml
+    with:
+      sha: ${{ github.sha }}
+    secrets: inherit
+
+  # Stage 4a: Deploy to Staging (develop branch)
+  deploy-staging:
+    needs: build
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    uses: ./.github/workflows/deploy-staging.yml
+    secrets: inherit
+
+  # Stage 4b: Deploy to Production (main branch)
+  deploy-production:
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    uses: ./.github/workflows/deploy-production.yml
+    secrets: inherit
