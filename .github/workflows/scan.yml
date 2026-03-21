@@ -8,15 +8,15 @@ on:
       sha:
         required: true
         type: string
+    permissions:
+      contents: read
+      security-events: write
 
 jobs:
   trivy:
     name: Trivy Security Scan
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    permissions:
-      contents: read
-      security-events: write
 
     strategy:
       fail-fast: false
