@@ -9,10 +9,6 @@ on:
         required: true
         type: string
 
-permissions:
-  contents: read
-  security-events: write
-
 jobs:
   trivy:
     name: Trivy Security Scan

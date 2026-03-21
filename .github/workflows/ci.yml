@@ -48,6 +48,9 @@ jobs:
   scan:
     needs: test
     uses: ./.github/workflows/scan.yml
+    permissions:
+      contents: read
+      security-events: write
     with:
       sha: ${{ github.sha }}
 
@@ -55,6 +58,9 @@ jobs:
   build:
     needs: scan
     uses: ./.github/workflows/build.yml
+    permissions:
+      contents: read
+      packages: write
     with:
       sha: ${{ github.sha }}
 
