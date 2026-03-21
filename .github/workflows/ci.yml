@@ -50,7 +50,6 @@ jobs:
     uses: ./.github/workflows/scan.yml
     with:
       sha: ${{ github.sha }}
-    secrets: inherit
 
   # Stage 3: Build and push (calls reusable build workflow)
   build:
@@ -58,18 +57,24 @@ jobs:
     uses: ./.github/workflows/build.yml
     with:
       sha: ${{ github.sha }}
-    secrets: inherit
 
   # Stage 4a: Deploy to Staging (develop branch)
   deploy-staging:
     needs: build
     if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
     uses: ./.github/workflows/deploy-staging.yml
-    secrets: inherit
+    secrets:
+      STAGING_VPS_HOST: ${{ secrets.STAGING_VPS_HOST }}
+      STAGING_VPS_USER: ${{ secrets.STAGING_VPS_USER }}
+      STAGING_VPS_SSH_KEY: ${{ secrets.STAGING_VPS_SSH_KEY }}
 
   # Stage 4b: Deploy to Production (main branch)
   deploy-production:
     needs: build
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     uses: ./.github/workflows/deploy-production.yml
-    secrets: inherit
+    secrets:
+      PROD_VPS_HOST: ${{ secrets.PROD_VPS_HOST }}
+      PROD_VPS_USER: ${{ secrets.PROD_VPS_USER }}
+      PROD_VPS_SSH_KEY: ${{ secrets.PROD_VPS_SSH_KEY }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
