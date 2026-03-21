@@ -12,8 +12,6 @@ on:
         required: true
       STAGING_VPS_SSH_KEY:
         required: true
-      GITHUB_TOKEN:
-        required: true
 
 jobs:
   deploy:

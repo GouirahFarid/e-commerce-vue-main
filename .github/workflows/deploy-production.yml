@@ -12,8 +12,6 @@ on:
         required: true
       PROD_VPS_SSH_KEY:
         required: true
-      GITHUB_TOKEN:
-        required: true
       JWT_SECRET:
         required: false
 
