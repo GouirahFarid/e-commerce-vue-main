@@ -1,9 +1,6 @@
 import { beforeAll, afterAll, beforeEach } from '@jest/globals';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import mongoose from 'mongoose';
-import dotenv from 'dotenv';
-
-dotenv.config({ path: '.env.test' });
 
 let mongod;
 
@@ -12,7 +9,11 @@ beforeAll(async () => {
     await mongoose.disconnect();
   }
 
-  mongod = await MongoMemoryServer.create();
+  mongod = await MongoMemoryServer.create({
+    binary: {
+      version: '7.0.0'
+    }
+  });
 
   const uri = mongod.getUri();
   await mongoose.connect(uri);
