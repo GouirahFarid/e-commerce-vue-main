@@ -1,0 +1,77 @@
+# Prometheus Configuration for E-Commerce Microservices
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'e-commerce-prod'
+    environment: 'production'
+
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          instance: 'prometheus'
+
+  # Grafana metrics
+  - job_name: 'grafana'
+    static_configs:
+      - targets: ['grafana:3000']
+        labels:
+          instance: 'grafana'
+
+  # cAdvisor - Container metrics
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+        labels:
+          instance: 'cadvisor'
+
+  # Node Exporter - Host metrics
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+        labels:
+          instance: 'vps-host'
+
+  # Auth Service
+  - job_name: 'auth-service'
+    scrape_interval: 30s
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['auth-service:3001']
+        labels:
+          service: 'auth-service'
+          team: 'backend'
+
+  # Product Service
+  - job_name: 'product-service'
+    scrape_interval: 30s
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['product-service:3000']
+        labels:
+          service: 'product-service'
+          team: 'backend'
+
+  # Order Service
+  - job_name: 'order-service'
+    scrape_interval: 30s
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['order-service:3002']
+        labels:
+          service: 'order-service'
+          team: 'backend'
+
+  # Frontend Service (optional - if metrics enabled)
+  - job_name: 'frontend'
+    scrape_interval: 30s
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['frontend:8080']
+        labels:
+          service: 'frontend'
+          team: 'frontend'
