@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { connectDB } from './config/database.js';
 import productRoutes from './routes/productRoutes.js';
 import cartRoutes from './routes/cartRoutes.js';
+import { metricsMiddleware, metricsEndpoint } from './middleware/metrics.js';
 
 dotenv.config();
 
@@ -20,6 +21,20 @@ if (process.env.NODE_ENV !== 'test') {
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Prometheus metrics middleware (only in production)
+if (process.env.NODE_ENV === 'production') {
+  app.use(metricsMiddleware);
+}
+
+// Routes
+app.use('/api/products', productRoutes);
+app.use('/api/cart', cartRoutes);
+
+// Metrics endpoint for Prometheus
+if (process.env.NODE_ENV === 'production') {
+  app.get('/metrics', metricsEndpoint);
+}
 
 // Routes
 app.use('/api/products', productRoutes);
