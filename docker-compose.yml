@@ -40,7 +40,7 @@ services:
     environment:
       - PORT=3001
       - MONGODB_URI=mongodb://mongodb:27017/auth
-      - JWT_SECRET=efrei_super_pass
+      - JWT_SECRET=${JWT_SECRET}
     volumes:
       - ./services/auth-service/src:/app/src
       - /app/node_modules
@@ -61,7 +61,7 @@ services:
     environment:
       - PORT=3000
       - MONGODB_URI=mongodb://mongodb:27017/ecommerce
-      - JWT_SECRET=efrei_super_pass
+      - JWT_SECRET=${JWT_SECRET}
     volumes:
       - ./services/product-service/src:/app/src
       - /app/node_modules
@@ -82,7 +82,7 @@ services:
     environment:
       - PORT=3002
       - MONGODB_URI=mongodb://mongodb:27017/orders
-      - JWT_SECRET=efrei_super_pass
+      - JWT_SECRET=${JWT_SECRET}
       - VITE_PRODUCT_SERVICE_URL=http://product-service:3000
     volumes:
       - ./services/order-service/src:/app/src

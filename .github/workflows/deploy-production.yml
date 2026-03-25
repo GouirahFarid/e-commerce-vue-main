@@ -5,6 +5,13 @@ name: Deploy to Production
 
 on:
   workflow_call:
+    inputs:
+      repository_owner:
+        required: true
+        type: string
+      repository_name:
+        required: true
+        type: string
     secrets:
       PROD_VPS_HOST:
         required: true
@@ -65,6 +72,10 @@ jobs:
           source: "docker-compose.monitoring.yml"
           target: "/var/www/e-commerce/"
 
+      - name: Lowercase repository owner
+        id: lowercase_owner
+        run: echo "owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
       - name: Copy monitoring configs to VPS
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -92,18 +103,20 @@ jobs:
 
             echo "${{ github.token }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
+            # Export dynamic image registry variables for envsubst
+            export REGISTRY=ghcr.io/$(echo '${{ inputs.repository_owner }}' | tr '[:upper:]' '[:lower:]')
+            export IMAGE_PREFIX=${{ inputs.repository_name }}
+            export IMAGE_TAG=1.0.0
+
             # Initialize Swarm mode if not already initialized
             if ! docker info | grep -q "Swarm: active"; then
               echo "Initializing Swarm mode..."
               docker swarm init --advertise-addr $(hostname -I | awk '{print $1}') || true
             fi
 
-            echo "Pulling latest images..."
-            docker pull ghcr.io/gouirahfarid/e-commerce-vue-main-nginx:latest
-            docker pull ghcr.io/gouirahfarid/e-commerce-vue-main-frontend:latest
-            docker pull ghcr.io/gouirahfarid/e-commerce-vue-main-auth-service:latest
-            docker pull ghcr.io/gouirahfarid/e-commerce-vue-main-product-service:latest
-            docker pull ghcr.io/gouirahfarid/e-commerce-vue-main-order-service:latest
+            echo "Expanding environment variables in compose file..."
+            envsubst < docker-compose.swarm.yml > docker-compose.swarm.yml.tmp
+            mv docker-compose.swarm.yml.tmp docker-compose.swarm.yml
 
             echo "Deploying stack with docker stack deploy..."
             docker stack deploy -c docker-compose.swarm.yml e-commerce
