@@ -56,7 +56,7 @@ jobs:
 
   # Stage 2: Security scan (calls reusable scan workflow)
   scan:
-    needs: test
+    needs: [test, build]
     uses: ./.github/workflows/scan.yml
     permissions:
       contents: read
