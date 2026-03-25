@@ -1086,9 +1086,7 @@ open() "/run/nginx.pid" failed (13: Permission denied)
 
 4. ✅ **Documentation complète**
    - [README.md](README.md)
-   - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
    - [docs/DOCKER_LOCAL_SETUP.md](docs/DOCKER_LOCAL_SETUP.md)
-   - [RAPPORT_FINAL.md](RAPPORT_FINAL.md)
    - [PRESENTATION.md](PRESENTATION.md)
 
 ### Bonus implémentés
