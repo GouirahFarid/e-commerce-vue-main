@@ -1,0 +1,169 @@
+# Reusable Production Deployment Workflow
+# Called by ci.yml for main branch
+# Uses docker stack deploy with docker-compose.swarm.yml
+name: Deploy to Production
+
+on:
+  workflow_call:
+    inputs:
+      repository_owner:
+        required: true
+        type: string
+      repository_name:
+        required: true
+        type: string
+    secrets:
+      PROD_VPS_HOST:
+        required: true
+      PROD_VPS_USER:
+        required: true
+      PROD_VPS_SSH_KEY:
+        required: true
+      JWT_SECRET:
+        required: false
+
+jobs:
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create directory on VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PROD_VPS_HOST }}
+          username: ${{ secrets.PROD_VPS_USER }}
+          key: ${{ secrets.PROD_VPS_SSH_KEY }}
+          script: |
+            sudo mkdir -p /var/www/e-commerce
+            sudo chown -R $USER:$USER /var/www/e-commerce
+            sudo usermod -aG docker $USER 2>/dev/null || true
+
+      - name: Copy docker-compose.swarm.yml to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.PROD_VPS_HOST }}
+          username: ${{ secrets.PROD_VPS_USER }}
+          key: ${{ secrets.PROD_VPS_SSH_KEY }}
+          source: "docker-compose.swarm.yml"
+          target: "/var/www/e-commerce/"
+
+      - name: Copy init-products.sh script to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.PROD_VPS_HOST }}
+          username: ${{ secrets.PROD_VPS_USER }}
+          key: ${{ secrets.PROD_VPS_SSH_KEY }}
+          source: "scripts/init-products.sh"
+          target: "/var/www/e-commerce/"
+
+      - name: Copy monitoring compose to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.PROD_VPS_HOST }}
+          username: ${{ secrets.PROD_VPS_USER }}
+          key: ${{ secrets.PROD_VPS_SSH_KEY }}
+          source: "docker-compose.monitoring.yml"
+          target: "/var/www/e-commerce/"
+
+      - name: Lowercase repository owner
+        id: lowercase_owner
+        run: echo "owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
+      - name: Copy monitoring configs to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.PROD_VPS_HOST }}
+          username: ${{ secrets.PROD_VPS_USER }}
+          key: ${{ secrets.PROD_VPS_SSH_KEY }}
+          source: "monitoring/"
+          target: "/var/www/e-commerce/"
+
+      - name: Deploy to Production VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PROD_VPS_HOST }}
+          username: ${{ secrets.PROD_VPS_USER }}
+          key: ${{ secrets.PROD_VPS_SSH_KEY }}
+          script_stop: true
+          script: |
+            set -e
+            cd /var/www/e-commerce
+
+            if [ ! -f .env ]; then
+              echo "ERROR: .env file not found!"
+              exit 1
+            fi
+
+            echo "${{ github.token }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            # Export dynamic image registry variables for envsubst
+            export REGISTRY=ghcr.io/$(echo '${{ inputs.repository_owner }}' | tr '[:upper:]' '[:lower:]')
+            export IMAGE_PREFIX=${{ inputs.repository_name }}
+            export IMAGE_TAG=1.0.0
+
+            # Initialize Swarm mode if not already initialized
+            if ! docker info | grep -q "Swarm: active"; then
+              echo "Initializing Swarm mode..."
+              docker swarm init --advertise-addr $(hostname -I | awk '{print $1}') || true
+            fi
+
+            echo "Expanding environment variables in compose file..."
+            envsubst < docker-compose.swarm.yml > docker-compose.swarm.yml.tmp
+            mv docker-compose.swarm.yml.tmp docker-compose.swarm.yml
+
+            echo "Deploying stack with docker stack deploy..."
+            docker stack deploy -c docker-compose.swarm.yml e-commerce
+
+            echo "Waiting for services to stabilize..."
+            sleep 30
+
+            # Check if mongodb is healthy, if not recreate volume
+            if ! docker service ps e-commerce_mongodb --format "{{.CurrentState}}" | grep -q "Running"; then
+              echo "MongoDB failed to start, recreating volume..."
+              docker service scale e-commerce_mongodb=0
+              sleep 5
+              docker volume rm e-commerce_production-mongodb-data 2>/dev/null || true
+              docker service scale e-commerce_mongodb=1
+              sleep 20
+            fi
+
+            docker stack services e-commerce
+
+            echo "Waiting for services to start..."
+            sleep 30
+
+            echo "Stack services status:"
+            docker stack services e-commerce
+
+            echo "Executing init-products.sh script..."
+            # Get first running product-service container (Swarm naming: e-commerce_product-service.1.xxxxx)
+            CONTAINER_ID=$(docker ps -q --filter "name=e-commerce_product-service" | head -n1)
+            if [ -n "$CONTAINER_ID" ]; then
+              docker cp /var/www/e-commerce/scripts/init-products.sh $CONTAINER_ID:/tmp/init-products.sh
+              docker exec $CONTAINER_ID sh /tmp/init-products.sh || echo "Note: Products may already exist or script failed"
+            else
+              echo "Warning: product-service container not found"
+            fi
+
+            echo "Cleaning up old images..."
+            docker image prune -af --filter "until=72h"
+
+            echo "Deploying monitoring stack (Prometheus + Grafana)..."
+            # Ensure production-network exists
+            docker network inspect production-network >/dev/null 2>&1 || docker network create --driver overlay --attachable production-network
+            docker stack deploy -c docker-compose.monitoring.yml e-commerce
+
+            sleep 10
+
+            echo "Monitoring stack deployed!"
+            echo "Prometheus: http://${{ secrets.PROD_VPS_HOST }}:9090"
+            echo "Grafana: http://${{ secrets.PROD_VPS_HOST }}:3000 (admin/admin)"
+
+            echo "Production deployment completed!"

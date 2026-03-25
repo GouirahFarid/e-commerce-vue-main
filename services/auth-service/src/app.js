@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { connectDB } from './config/database.js';
 import authRoutes from './routes/authRoutes.js';
+import { metricsMiddleware, metricsEndpoint } from './middleware/metrics.js';
 
 dotenv.config();
 
@@ -20,6 +21,16 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 app.use(express.json());
+
+// Prometheus metrics middleware (only in production)
+if (process.env.NODE_ENV === 'production') {
+  app.use(metricsMiddleware);
+}
+
+// Metrics endpoint for Prometheus
+if (process.env.NODE_ENV === 'production') {
+  app.get('/metrics', metricsEndpoint);
+}
 
 app.use('/api/auth', authRoutes);
 // Middleware pour le logging des requêtes

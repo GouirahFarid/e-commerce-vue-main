@@ -1,0 +1,19 @@
+# IDE
+.vscode
+.idea
+.DS_Store
+*.swp
+*.swo
+
+# Git
+.git
+.gitignore
+
+# CI/CD
+.github
+.gitlab-ci.yml
+
+# Documentation
+README.md
+*.md
+docs

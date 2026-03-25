@@ -1,0 +1,126 @@
+# Reusable Staging Deployment Workflow
+# Called by ci.yml for develop or feature/ci-cd branch
+# Uses docker-compose.prod.yml with pre-built images from GHCR
+name: Deploy to Staging
+
+on:
+  workflow_call:
+    inputs:
+      repository_owner:
+        required: true
+        type: string
+      repository_name:
+        required: true
+        type: string
+    secrets:
+      STAGING_VPS_HOST:
+        required: true
+      STAGING_VPS_USER:
+        required: true
+      STAGING_VPS_SSH_KEY:
+        required: true
+
+jobs:
+  deploy:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: staging
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Lowercase repository owner
+        id: lowercase_owner
+        run: echo "owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+        env:
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+
+      - name: Create directory on VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.STAGING_VPS_HOST }}
+          username: ${{ secrets.STAGING_VPS_USER }}
+          key: ${{ secrets.STAGING_VPS_SSH_KEY }}
+          script: |
+            sudo mkdir -p /var/www/e-commerce
+            sudo chown -R $USER:$USER /var/www/e-commerce
+            sudo usermod -aG docker $USER 2>/dev/null || true
+
+      - name: Copy docker-compose.prod.yml to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.STAGING_VPS_HOST }}
+          username: ${{ secrets.STAGING_VPS_USER }}
+          key: ${{ secrets.STAGING_VPS_SSH_KEY }}
+          source: "docker-compose.prod.yml"
+          target: "/var/www/e-commerce/"
+
+      - name: Update docker-compose.prod.yml with dynamic username
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.STAGING_VPS_HOST }}
+          username: ${{ secrets.STAGING_VPS_USER }}
+          key: ${{ secrets.STAGING_VPS_SSH_KEY }}
+          script: |
+            cd /var/www/e-commerce
+            sed -i "s|\${REGISTRY}/\${IMAGE_PREFIX}|ghcr.io/$(echo '${{ inputs.repository_owner }}' | tr '[:upper:]' '[:lower:]')/${{ inputs.repository_name }}|g" docker-compose.prod.yml
+            sed -i "s|\${IMAGE_TAG}|-1.0.0|g" docker-compose.prod.yml
+
+      - name: Copy init-products.sh script to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.STAGING_VPS_HOST }}
+          username: ${{ secrets.STAGING_VPS_USER }}
+          key: ${{ secrets.STAGING_VPS_SSH_KEY }}
+          source: "scripts/init-products.sh"
+          target: "/var/www/e-commerce/"
+
+      - name: Deploy to Staging VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.STAGING_VPS_HOST }}
+          username: ${{ secrets.STAGING_VPS_USER }}
+          key: ${{ secrets.STAGING_VPS_SSH_KEY }}
+          script_stop: true
+          script: |
+            set -e
+            cd /var/www/e-commerce
+
+            if [ ! -f .env ]; then
+              echo "Creating .env file..."
+              cat > .env << 'EOF'
+            MONGODB_URI=mongodb://mongodb:27017
+            JWT_SECRET=\${JWT_SECRET}
+            AUTH_PORT=3001
+            PRODUCT_PORT=3000
+            ORDER_PORT=3002
+            FRONTEND_PORT=8080
+            EOF
+            fi
+
+            echo "${{ github.token }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            echo "Pulling images..."
+            sudo docker compose -f docker-compose.prod.yml pull
+
+            echo "Starting services..."
+            sudo docker compose -f docker-compose.prod.yml up -d
+
+            echo "Waiting for health checks..."
+            sleep 20
+
+            sudo docker compose -f docker-compose.prod.yml ps
+
+            echo "Executing init-products.sh script..."
+            if [ -f /var/www/e-commerce/scripts/init-products.sh ]; then
+              sudo docker compose -f docker-compose.prod.yml cp /var/www/e-commerce/scripts/init-products.sh product-service:/tmp/init-products.sh
+              sudo docker compose -f docker-compose.prod.yml exec -T product-service sh /tmp/init-products.sh || echo "Note: Products may already exist or script failed"
+            else
+              echo "Warning: init-products.sh not found"
+              ls -la /var/www/e-commerce/scripts/ || echo "scripts directory doesn't exist"
+            fi
+
+            echo "Staging deployment completed!"

@@ -13,7 +13,7 @@ COPY src ./src
 
 # Production stage
 FROM node:20-alpine
-
+# Fix CRITICAL vulnerabilities in Alpine packages
 RUN apk upgrade --no-cache libexpat zlib && \
     apk add --no-cache curl && \
     rm -rf /var/cache/apk/*
@@ -28,7 +28,7 @@ COPY --from=builder --chown=nodejs:nodejs /app/package.json ./
 COPY --from=builder --chown=nodejs:nodejs /app/src ./src
 
 USER nodejs
-EXPOSE 3002
+EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:3002/api/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"
+    CMD node -e "require('http').get('http://localhost:3000/api/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"
 CMD ["node", "src/app.js"]
