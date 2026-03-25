@@ -94,10 +94,10 @@ jobs:
           fi
           echo "Security scan and build both passed"
 
-  # Stage 4a: Deploy to Staging (develop or feature branches)
+  # Stage 4a: Deploy to Staging (develop branch only)
   deploy-staging:
     needs: security-gate
-    if: (github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/heads/feature/')) && github.event_name == 'push'
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
     uses: ./.github/workflows/deploy-staging.yml
     secrets:
       STAGING_VPS_HOST: ${{ secrets.STAGING_VPS_HOST }}
@@ -107,10 +107,10 @@ jobs:
       repository_owner: ${{ github.repository_owner }}
       repository_name: ${{ github.event.repository.name }}
 
-  # Stage 4b: Deploy to Production (main or feature branches)
+  # Stage 4b: Deploy to Production (main branch only)
   deploy-production:
     needs: security-gate
-    if: (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/feature/')) && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     uses: ./.github/workflows/deploy-production.yml
     secrets:
       PROD_VPS_HOST: ${{ secrets.PROD_VPS_HOST }}
