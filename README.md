@@ -1,10 +1,12 @@
-a# Rapport de Projet - Infrastructure Docker et CI/CD
+# Rapport de Projet - Infrastructure Docker et CI/CD
 ## Application E-Commerce Microservices
 
-**Auteurs :** Farid Gouirah & Chaimae Faris
-**Formation :** ESGI - Master 4IW3
-**Année :** 2025-2026
-**Date de rendu :** Mars 2026
+| | |
+|---|---|
+| **Auteurs** | Farid Gouirah & Chaimae Faris |
+| **Formation** | ESGI - Master 4IW3 |
+| **Année** | 2025-2026 |
+| **Date de rendu** | Mars 2026 |
 
 ---
 
@@ -100,13 +102,11 @@ L'application e-commerce est composée de 4 services principaux :
 
 ### Tags des Images (Version 1.0.0)
 
-```
-ghcr.io/gouirahfarid/e-commerce-vue-main-nginx:1.0.0
-ghcr.io/gouirahfarid/e-commerce-vue-main-frontend:1.0.0
-ghcr.io/gouirahfarid/e-commerce-vue-main-auth-service:1.0.0
-ghcr.io/gouirahfarid/e-commerce-vue-main-product-service:1.0.0
-ghcr.io/gouirahfarid/e-commerce-vue-main-order-service:1.0.0
-```
+- [`ghcr.io/gouirahfarid/e-commerce-vue-main-nginx:1.0.0`](https://github.com/gouirahfarid/e-commerce-vue-main/pkgs/container/e-commerce-vue-main-nginx)
+- [`ghcr.io/gouirahfarid/e-commerce-vue-main-frontend:1.0.0`](https://github.com/gouirahfarid/e-commerce-vue-main/pkgs/container/e-commerce-vue-main-frontend)
+- [`ghcr.io/gouirahfarid/e-commerce-vue-main-auth-service:1.0.0`](https://github.com/gouirahfarid/e-commerce-vue-main/pkgs/container/e-commerce-vue-main-auth-service)
+- [`ghcr.io/gouirahfarid/e-commerce-vue-main-product-service:1.0.0`](https://github.com/gouirahfarid/e-commerce-vue-main/pkgs/container/e-commerce-vue-main-product-service)
+- [`ghcr.io/gouirahfarid/e-commerce-vue-main-order-service:1.0.0`](https://github.com/gouirahfarid/e-commerce-vue-main/pkgs/container/e-commerce-vue-main-order-service)
 
 ---
 
@@ -560,30 +560,29 @@ services:
 Nous avons implémenté une architecture **modulaire** avec flux séquentiel :
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        ci.yml (Entry Point)                     │
-│                                                                 │
-│  ┌────────┐                                                    │
-│  │  Test  │                                                    │
-│  │ (+npm  │                                                    │
-│  │ cache) │                                                    │
-│  └───┬────┘                                                    │
-│      │                                                          │
-│      ▼                                                          │
-│  ┌────────┐                                                    │
-│  │ Build  │─────────────────────────────────────┐              │
-│  │(+registry                                      │              │
-│  │ cache)  │                                      ▼              │
-│  └───┬────┘                              ┌─────────────┐       │
-│      │                                     │Security Gate│       │
-│      ▼                                     │  (blocks if │───→ Deploy
-│  ┌────────┐                              │   failed)   │       │
-│  │  Scan  │  ← attend que build finisse   └─────────────┘       │
-│  │(Trivy) │                                                     │
-│  └────────┘                                                     │
-│      │                                                          │
-│      └──────────────────────────────────────────────────┘      │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                       ci.yml (Entry Point)                          │
+│                                                                     │
+│  ┌───────────┐                                                      │
+│  │   Test    │                                                      │
+│  │  (+npm    │                                                      │
+│  │   cache)  │                                                      │
+│  └─────┬─────┘                                                      │
+│        │                                                            │
+│        ▼                                                            │
+│  ┌───────────┐                                                      │
+│  │   Build   │                                                      │
+│  │ (+registry│                                                      │
+│  │   cache)  │                                                      │
+│  └─────┬─────┘                                                      │
+│        │                                                            │
+│        ▼  (attend que build finisse — scanne les images pushées)    │
+│  ┌───────────┐      ┌───────────────┐                               │
+│  │   Scan    │─────▶│ Security Gate │─────▶ Deploy                  │
+│  │  (Trivy)  │      │ (blocks if    │                               │
+│  └───────────┘      │   failed)     │                               │
+│                     └───────────────┘                               │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
 **Note importante :** Le scan Trivy doit attendre que le build soit terminé car il scanne les images **déjà pushées** dans le registry GitHub (`needs: [test, build]`).
@@ -770,21 +769,24 @@ docker image prune -af --filter "until=72h"
 ### Architecture du monitoring
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     Monitoring Stack                         │
-│                                                             │
-│  ┌────────────┐    ┌────────────┐    ┌──────────────┐     │
-│  │ cAdvisor   │───→│ Prometheus │───→│   Grafana    │     │
-│  │ :8081      │    │ :9090      │    │    :3000     │     │
-│  └────────────┘    └────────────┘    └──────────────┘     │
-│         │                  │                                │
-│         └──────────────────┼────────────────┐              │
-│                            │                │              │
-│  ┌────────────┐    ┌────────────┐   ┌────────────┐        │
-│  │   Services │───→│Node Exporter│  │ Containers │        │
-│  │  /metrics  │    │    :9100   │   │   Stats    │        │
-│  └────────────┘    └────────────┘   └────────────┘        │
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│                        Monitoring Stack                          │
+│                                                                  │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐        │
+│  │  cAdvisor    │───▶│  Prometheus  │───▶│   Grafana    │        │
+│  │   :8081      │    │    :9090     │    │    :3000     │        │
+│  └──────┬───────┘    └──────▲───────┘    └──────────────┘        │
+│         │                   │                                    │
+│         │            ┌──────┴───────┐                            │
+│         │            │ Node Exporter│                            │
+│         │            │    :9100     │                            │
+│         │            └──────▲───────┘                            │
+│         │                   │                                    │
+│  ┌──────┴───────┐    ┌──────┴───────┐                            │
+│  │  Containers  │    │   Services   │                            │
+│  │    Stats     │    │   /metrics   │                            │
+│  └──────────────┘    └──────────────┘                            │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
 ### Métriques exposées par service
@@ -1083,11 +1085,11 @@ open() "/run/nginx.pid" failed (13: Permission denied)
    - Versions dynamiques pour les images de monitoring
 
 4. ✅ **Documentation complète**
-   - README.md
-   - docs/DEPLOYMENT.md
-   - docs/DOCKER_LOCAL_SETUP.md
-   - RAPPORT_FINAL.md
-   - PRESENTATION.md
+   - [README.md](README.md)
+   - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
+   - [docs/DOCKER_LOCAL_SETUP.md](docs/DOCKER_LOCAL_SETUP.md)
+   - [RAPPORT_FINAL.md](RAPPORT_FINAL.md)
+   - [PRESENTATION.md](PRESENTATION.md)
 
 ### Bonus implémentés
 
