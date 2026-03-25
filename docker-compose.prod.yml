@@ -1,11 +1,10 @@
-# GHCR Image Registry
+# GHCR Image Registry - Dynamic via env vars
 # Images are built and pushed via GitHub Actions build-push.yml workflow
-# Repository: GouirahFarid/e-commerce-vue-main
-# Registry: ghcr.io
+# REGISTRY, IMAGE_PREFIX, and IMAGE_TAG are set at runtime
 
 services:
   nginx:
-    image: ghcr.io/gouirahfarid/e-commerce-vue-main-nginx:latest
+    image: ${REGISTRY}/${IMAGE_PREFIX}-nginx:${IMAGE_TAG:-1.0.0}
     ports:
       - "8080:80"
       - "8443:443"
@@ -25,7 +24,7 @@ services:
           memory: 128M
 
   frontend:
-    image: ghcr.io/gouirahfarid/e-commerce-vue-main-frontend:latest
+    image: ${REGISTRY}/${IMAGE_PREFIX}-frontend:${IMAGE_TAG:-1.0.0}
     environment:
       - VITE_AUTH_SERVICE_URL=http://auth-service:3001
       - VITE_PRODUCT_SERVICE_URL=http://product-service:3000
@@ -57,7 +56,7 @@ services:
           memory: 256M
 
   auth-service:
-    image: ghcr.io/gouirahfarid/e-commerce-vue-main-auth-service:latest
+    image: ${REGISTRY}/${IMAGE_PREFIX}-auth-service:${IMAGE_TAG:-1.0.0}
     environment:
       - PORT=${AUTH_PORT:-3001}
       - MONGODB_URI=mongodb://mongodb:27017/auth
@@ -85,7 +84,7 @@ services:
           memory: 256M
 
   product-service:
-    image: ghcr.io/gouirahfarid/e-commerce-vue-main-product-service:latest
+    image: ${REGISTRY}/${IMAGE_PREFIX}-product-service:${IMAGE_TAG:-1.0.0}
     environment:
       - PORT=${PRODUCT_PORT:-3000}
       - MONGODB_URI=mongodb://mongodb:27017/ecommerce
@@ -113,7 +112,7 @@ services:
           memory: 256M
 
   order-service:
-    image: ghcr.io/gouirahfarid/e-commerce-vue-main-order-service:latest
+    image: ${REGISTRY}/${IMAGE_PREFIX}-order-service:${IMAGE_TAG:-1.0.0}
     environment:
       - PORT=${ORDER_PORT:-3002}
       - MONGODB_URI=mongodb://mongodb:27017/orders

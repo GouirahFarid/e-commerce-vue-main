@@ -94,23 +94,29 @@ jobs:
           fi
           echo "Security scan and build both passed"
 
-  # Stage 4a: Deploy to Staging (develop or feature/ci-cd branch)
+  # Stage 4a: Deploy to Staging (develop or feature branches)
   deploy-staging:
     needs: security-gate
-    if: (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/feature/ci-cd') && github.event_name == 'push'
+    if: (github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/heads/feature/')) && github.event_name == 'push'
     uses: ./.github/workflows/deploy-staging.yml
     secrets:
       STAGING_VPS_HOST: ${{ secrets.STAGING_VPS_HOST }}
       STAGING_VPS_USER: ${{ secrets.STAGING_VPS_USER }}
       STAGING_VPS_SSH_KEY: ${{ secrets.STAGING_VPS_SSH_KEY }}
+    with:
+      repository_owner: ${{ github.repository_owner }}
+      repository_name: ${{ github.event.repository.name }}
 
-  # Stage 4b: Deploy to Production (main or feature/ci-cd branch)
+  # Stage 4b: Deploy to Production (main or feature branches)
   deploy-production:
     needs: security-gate
-    if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/ci-cd') && github.event_name == 'push'
+    if: (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/feature/')) && github.event_name == 'push'
     uses: ./.github/workflows/deploy-production.yml
     secrets:
       PROD_VPS_HOST: ${{ secrets.PROD_VPS_HOST }}
       PROD_VPS_USER: ${{ secrets.PROD_VPS_USER }}
       PROD_VPS_SSH_KEY: ${{ secrets.PROD_VPS_SSH_KEY }}
       JWT_SECRET: ${{ secrets.JWT_SECRET }}
+    with:
+      repository_owner: ${{ github.repository_owner }}
+      repository_name: ${{ github.event.repository.name }}

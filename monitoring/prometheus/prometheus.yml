@@ -1,11 +1,12 @@
 # Prometheus Configuration for E-Commerce Microservices
+# Cluster and environment labels can be set via env vars
 
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
   external_labels:
-    cluster: 'e-commerce-prod'
-    environment: 'production'
+    cluster: '${CLUSTER_NAME:-e-commerce}'
+    environment: '${ENVIRONMENT:-production}'
 
 scrape_configs:
   # Prometheus self-monitoring

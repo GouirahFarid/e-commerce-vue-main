@@ -1,13 +1,14 @@
 version: '3.8'
 
-# Docker Swarm deployment configuration
+# Docker Swarm deployment configuration - Dynamic via env vars
 # Deploy with: docker stack deploy -c docker-compose.swarm.yml e-commerce
 # View services: docker stack services e-commerce
 # Remove stack: docker stack rm e-commerce
+# REGISTRY, IMAGE_PREFIX, and IMAGE_TAG are set at runtime
 
 services:
   nginx:
-    image: ghcr.io/gouirahfarid/e-commerce-vue-main-nginx:latest
+    image: ${REGISTRY}/${IMAGE_PREFIX}-nginx:${IMAGE_TAG:-1.0.0}
     ports:
       - target: 80
         published: 80
@@ -42,7 +43,7 @@ services:
           memory: 128M
 
   frontend:
-    image: ghcr.io/gouirahfarid/e-commerce-vue-main-frontend:latest
+    image: ${REGISTRY}/${IMAGE_PREFIX}-frontend:${IMAGE_TAG:-1.0.0}
     environment:
       - VITE_AUTH_SERVICE_URL=http://auth-service:3001
       - VITE_PRODUCT_SERVICE_URL=http://product-service:3000
@@ -80,11 +81,11 @@ services:
           memory: 256M
 
   auth-service:
-    image: ghcr.io/gouirahfarid/e-commerce-vue-main-auth-service:latest
+    image: ${REGISTRY}/${IMAGE_PREFIX}-auth-service:${IMAGE_TAG:-1.0.0}
     environment:
       - PORT=3001
       - MONGODB_URI=mongodb://mongodb:27017/auth
-      - JWT_SECRET=${JWT_SECRET:-efrei_super_pass}
+      - JWT_SECRET=${JWT_SECRET}
       - NODE_ENV=production
     depends_on:
       - mongodb
@@ -116,11 +117,11 @@ services:
           memory: 256M
 
   product-service:
-    image: ghcr.io/gouirahfarid/e-commerce-vue-main-product-service:latest
+    image: ${REGISTRY}/${IMAGE_PREFIX}-product-service:${IMAGE_TAG:-1.0.0}
     environment:
       - PORT=3000
       - MONGODB_URI=mongodb://mongodb:27017/ecommerce
-      - JWT_SECRET=${JWT_SECRET:-efrei_super_pass}
+      - JWT_SECRET=${JWT_SECRET}
       - NODE_ENV=production
     depends_on:
       - mongodb
@@ -152,11 +153,11 @@ services:
           memory: 256M
 
   order-service:
-    image: ghcr.io/gouirahfarid/e-commerce-vue-main-order-service:latest
+    image: ${REGISTRY}/${IMAGE_PREFIX}-order-service:${IMAGE_TAG:-1.0.0}
     environment:
       - PORT=3002
       - MONGODB_URI=mongodb://mongodb:27017/orders
-      - JWT_SECRET=${JWT_SECRET:-efrei_super_pass}
+      - JWT_SECRET=${JWT_SECRET}
       - VITE_PRODUCT_SERVICE_URL=http://product-service:3000
       - NODE_ENV=production
     depends_on:

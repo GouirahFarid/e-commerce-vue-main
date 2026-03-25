@@ -1,13 +1,14 @@
 # Monitoring Stack for Production (Docker Swarm)
 # Prometheus + Grafana + cAdvisor + Node Exporter
 # Deploy with: docker stack deploy -c docker-compose.monitoring.yml e-commerce
+# Version variables can be set at runtime
 
 version: '3.8'
 
 services:
   # Prometheus - Metrics Collection
   prometheus:
-    image: prom/prometheus:v2.50.0
+    image: prom/prometheus:${PROMETHEUS_VERSION:-v2.50.0}
     ports:
       - target: 9090
         published: 9090
@@ -42,7 +43,7 @@ services:
 
   # Grafana - Visualization
   grafana:
-    image: grafana/grafana:10.3.0
+    image: grafana/grafana:${GRAFANA_VERSION:-10.3.0}
     ports:
       - target: 3000
         published: 3000
@@ -79,7 +80,7 @@ services:
 
   # cAdvisor - Container Metrics
   cadvisor:
-    image: gcr.io/cadvisor/cadvisor:v0.47.2
+    image: gcr.io/cadvisor/cadvisor:${CADVISOR_VERSION:-v0.47.2}
     ports:
       - target: 8080
         published: 8081
@@ -109,7 +110,7 @@ services:
 
   # Node Exporter - Host Metrics
   node-exporter:
-    image: prom/node-exporter:v1.7.0
+    image: prom/node-exporter:${NODE_EXPORTER_VERSION:-v1.7.0}
     ports:
       - target: 9100
         published: 9100
