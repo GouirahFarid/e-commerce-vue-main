@@ -12,7 +12,11 @@ beforeAll(async () => {
     await mongoose.disconnect();
   }
 
-  mongod = await MongoMemoryServer.create();
+  mongod = await MongoMemoryServer.create({
+    binary: {
+      version: '7.0.0'
+    }
+  });
 
   const uri = mongod.getUri();
   await mongoose.connect(uri);
