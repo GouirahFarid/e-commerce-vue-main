@@ -60,7 +60,7 @@ services:
     environment:
       - PORT=${AUTH_PORT:-3001}
       - MONGODB_URI=mongodb://mongodb:27017/auth
-      - JWT_SECRET=${JWT_SECRET}
+      - JWT_SECRET=${JWT_SECRET:-efrei_super_pass}
       - NODE_ENV=production
     depends_on:
       mongodb:
@@ -88,7 +88,7 @@ services:
     environment:
       - PORT=${PRODUCT_PORT:-3000}
       - MONGODB_URI=mongodb://mongodb:27017/ecommerce
-      - JWT_SECRET=${JWT_SECRET}
+      - JWT_SECRET=${JWT_SECRET:-efrei_super_pass}
       - NODE_ENV=production
     depends_on:
       mongodb:
@@ -116,7 +116,7 @@ services:
     environment:
       - PORT=${ORDER_PORT:-3002}
       - MONGODB_URI=mongodb://mongodb:27017/orders
-      - JWT_SECRET=${JWT_SECRET}
+      - JWT_SECRET=${JWT_SECRET:-efrei_super_pass}
       - VITE_PRODUCT_SERVICE_URL=http://product-service:3000
       - NODE_ENV=production
     depends_on:
